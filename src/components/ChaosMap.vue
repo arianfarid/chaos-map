@@ -9,7 +9,7 @@
     </div>
     <div>
         Polygon Count <input v-model="polygon_count_input" type="text" v-on:input="updatePolygonCount" name="polygon_count_input">
-        <button @click="generateGeoPolygon(polygon_count)">Generate Polygon</button>
+        <button @click="initPolygonGeneration(polygon_count_input)">Generate Polygon</button>
     </div>
 </template>
 <script>
@@ -42,21 +42,43 @@ export default {
                     "notes": "test point."
                 },
                 "geometry": {
-                    "type": "Point",
-                    "coordinates": [0, 0],
+                    "type": "Polygon",
+                    "coordinates": [],
                 }
             }],
         });
-        //broke
-        const generateGeoPolygon = (num) => {
-            console.log(num);
-            if (num < 3) {
+
+        const initPolygonGeneration = (vertex_total) => {
+            if (vertex_total < 3) {
                 return console.log('too few vertices')
             } else {
-                console.log('generateGeoPolygon');
+                console.log('initPolygonGeneration');
+                geojson_data.value.features[0].geometry.coordinates = []
+                return generateGeoPolygon(vertex_total);
             }
-            return
         }
+        const generateGeoPolygon = (vertex_total, position = 1) => {
+            if (position > vertex_total) {
+                return
+            }
+            console.log('generateGeoPolygon');
+            let angle = (360 / vertex_total) * position;
+
+            geojson_data.value.features[0].geometry.coordinates.push(
+                [
+                    (Math.round(
+                        (Math.sin(angle * (Math.PI / 180)) + Number.EPSILON) * 1000
+                    ) /
+                    1000) ,
+                    (Math.round(
+                        (Math.cos(angle * (Math.PI / 180)) + Number.EPSILON) * 1000
+                    ) /
+                    1000) 
+                ]);
+            console.log(geojson_data.value.features[0].geometry.coordinates);
+            return generateGeoPolygon(vertex_total, position + 1);
+        }
+
         const polygon_count_input = ref('');
         const polygon_count = ref('');
         // const updatePolygonCount = () => {
@@ -75,7 +97,7 @@ export default {
             if (typeof polygon_count.value != 'number') {
                 return
             }
-            // generateGeoPolygon(polygon_count.value);
+            // initPolygonGeneration(polygon_count.value);
             return
         });
         onBeforeMount(async () => {
@@ -87,7 +109,7 @@ export default {
             ref.mapIsReady = true;
         })
         return {
-            generateGeoPolygon,
+            initPolygonGeneration,
             geojson_data,
             polygon_count,
             polygon_count_input
