@@ -1,5 +1,5 @@
 <template>
-    <l-map ref="map" :center="[0,0]" :zoom="2" style="z-index:5; height:30vh">
+    <l-map ref="map" :center="[0,0]" :zoom="2" style="z-index:5; height:60vh">
         <l-geo-json ref="geojson" v-if="show_geoJson" :geojson="geojson_data" :options="geojson_options">
         </l-geo-json>
         <l-polygon ref="polygon" v-if="show_polygon" :style="polygon_options" :lat-lngs="polygon_data.features[0].geometry.coordinates">
@@ -7,11 +7,14 @@
         <l-tile-layer url="https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png" layer-type="base" name="OpenStreetMap" :max-zoom="10" />
     </l-map>
     <div>
-        Radius (decimal degrees) = 1
+        Polygon radius (decimal degrees) = 1
     </div>
     <div>
         Polygon Count <input v-model="polygon_count_input" type="text" v-on:input="updatePolygonCount" name="polygon_count_input">
         <button @click="initPolygonGeneration(polygon_count_input)">Generate Polygon</button>
+    </div>
+    <div>
+        r (between 0 and 1) = {{r_value}} <input v-model="r_value_input" type="text" v-on:input="updateRValue" name="r_value" >
     </div>
     <div>
         Point Count <input v-model="point_count_input" type="text" v-on:input="updatepointCount" name="point_count_input">
@@ -32,6 +35,15 @@ export default {
     setup() {
         const show_polygon = ref(true);
         const show_geoJson = ref(true);
+        const r_value_input = ref('');
+        const r_value = ref(0.5);
+        const updateRValue = () => {
+            if (r_value_input.value < 1 && r_value_input.value > 0) {
+                r_value.value = r_value_input.value
+            } else {
+              return console.log('r is out of range')
+            }
+        }
         const polygon_options = {
             //can't use leaflet methods in here
             style: {
@@ -105,9 +117,9 @@ export default {
         var geojson_options = {
             //can't use leaflet methods in here
             style: {
-                "color": "#34d399",
-                "weight": 2,
-                "opacity": 0.65
+                "color": "#D21F3C",
+                "weight": 1,
+                "opacity": 0.35
             },
         };
         const point_count_input = ref('');
@@ -135,8 +147,8 @@ export default {
             //random integer from 0 to index length of polygon
             let vertex_random = Math.floor(Math.random() * polygon_count_input.value);
             points.value.push([
-                points.value[point_index - 1][0] + (polygon_data.value.features[0].geometry.coordinates[vertex_random][0] - points.value[point_index - 1][0]) / 2,
-                points.value[point_index - 1][1] + (polygon_data.value.features[0].geometry.coordinates[vertex_random][1] - points.value[point_index - 1][1]) / 2
+                points.value[point_index - 1][0] + ( r_value.value * (polygon_data.value.features[0].geometry.coordinates[vertex_random][0] - points.value[point_index - 1][0])),
+                points.value[point_index - 1][1] + ( r_value.value * (polygon_data.value.features[0].geometry.coordinates[vertex_random][1] - points.value[point_index - 1][1]))
             ])
             return (generatePoints(point_total, point_index + 1))
         }
@@ -185,8 +197,11 @@ export default {
             points,
             polygon_count,
             polygon_count_input,
+            r_value,
+            r_value_input,
             show_geoJson,
-            show_polygon
+            show_polygon,
+            updateRValue,
         }
     }
 }
