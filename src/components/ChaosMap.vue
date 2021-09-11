@@ -1,7 +1,9 @@
 <template>
-    <l-map ref="map" :center="[0,0]" style="z-index:5; height:30vh">
-        <l-geo-json ref="geojson" :geojson="geojson_data">
+    <l-map ref="map" :center="[0,0]" :zoom="3" style="z-index:5; height:30vh">
+        <l-geo-json ref="geojson" v-if="show_geoJson" :geojson="geojson_data" :options="geojson_options">
         </l-geo-json>
+        <l-polygon ref="polygon" v-if="show_polygon" :style="polygon_options" :lat-lngs="polygon_data.features[0].geometry.coordinates">
+        </l-polygon>
         <l-tile-layer url="https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png" layer-type="base" name="OpenStreetMap" :max-zoom="10" />
     </l-map>
     <div>
@@ -11,19 +13,25 @@
         Polygon Count <input v-model="polygon_count_input" type="text" v-on:input="updatePolygonCount" name="polygon_count_input">
         <button @click="initPolygonGeneration(polygon_count_input)">Generate Polygon</button>
     </div>
+    <div>
+        Point Count <input v-model="point_count_input" type="text" v-on:input="updatepointCount" name="point_count_input">
+        <button @click="initpointGeneration(point_count_input)">Generate Points</button>
+    </div>
 </template>
 <script>
 import { onBeforeMount, ref, watch } from 'vue';
 import "leaflet/dist/leaflet.css"
-import { LMap, LGeoJson, LTileLayer } from "@vue-leaflet/vue-leaflet";
+import { LMap, LPolygon, LTileLayer } from "@vue-leaflet/vue-leaflet";
 export default {
     components: {
         LMap,
-        LGeoJson,
+        LPolygon,
         LTileLayer,
     },
     setup() {
-        const geojson_options = {
+        const show_polygon = ref(true);
+        const show_geoJson = ref(true);
+        const polygon_options = {
             //can't use leaflet methods in here
             style: {
                 "color": "#34d399",
@@ -31,29 +39,26 @@ export default {
                 "opacity": 0.65
             },
         };
-        const geojson_data = ref({
+        const polygon_data = ref({
 
             type: "FeatureCollection",
 
             features: [{
                 "type": "Feature",
-                "properties": {
-                    "dataType": "lat lng coordinate",
-                    "notes": "test point."
-                },
                 "geometry": {
                     "type": "Polygon",
                     "coordinates": [],
                 }
             }],
         });
-
         const initPolygonGeneration = (vertex_total) => {
             if (vertex_total < 3) {
                 return console.log('too few vertices')
             } else {
                 console.log('initPolygonGeneration');
-                geojson_data.value.features[0].geometry.coordinates = []
+                show_polygon.value = !show_polygon.value;
+                console.log(show_polygon.value)
+                polygon_data.value.features[0].geometry.coordinates = []
                 return generateGeoPolygon(vertex_total);
             }
         }
@@ -64,55 +69,108 @@ export default {
             console.log('generateGeoPolygon');
             let angle = (360 / vertex_total) * position;
 
-            geojson_data.value.features[0].geometry.coordinates.push(
+            polygon_data.value.features[0].geometry.coordinates.push(
                 [
+                    10 *
                     (Math.round(
-                        (Math.sin(angle * (Math.PI / 180)) + Number.EPSILON) * 1000
-                    ) /
-                    1000) ,
+                            (Math.sin(angle * (Math.PI / 180)) + Number.EPSILON) * 1000
+                        ) /
+                        1000),
+                    10 *
                     (Math.round(
-                        (Math.cos(angle * (Math.PI / 180)) + Number.EPSILON) * 1000
-                    ) /
-                    1000) 
+                            (Math.cos(angle * (Math.PI / 180)) + Number.EPSILON) * 1000
+                        ) /
+                        1000)
                 ]);
-            console.log(geojson_data.value.features[0].geometry.coordinates);
+            // console.log(polygon_data.value.features[0].geometry.coordinates);
             return generateGeoPolygon(vertex_total, position + 1);
         }
-
         const polygon_count_input = ref('');
         const polygon_count = ref('');
-        // const updatePolygonCount = () => {
-        //   polygon_count.value = polygon_count_input.value;
-        // }
-        // const addPointsToMap = (num) => {
-        //   if (num === 0) {
-        //     return
-        //   }
-        //   console.log('add');f
-        //   return 
-        // }
-        //not working
-        watch(geojson_data, () => {
-            console.log('watched');
-            if (typeof polygon_count.value != 'number') {
+
+
+        var geojson_data = ref({
+
+            type: "FeatureCollection",
+
+            features: [{
+                "type": "Feature",
+                "properties": {
+                    "dataType": "lat lng coordinate",
+                    "notes": "test point."
+                },
+                "geometry": {
+                    "type": "Point",
+                    "coordinates": [15, 30],
+                }
+            }],
+        });
+        var geojson_options = {
+            //can't use leaflet methods in here
+            style: {
+                "color": "#34d399",
+                "weight": 5,
+                "opacity": 0.65
+            },
+        };
+        const point_count_input = ref('');
+        const point_count = ref('');
+        const points = ref([]);
+
+        const initpointGeneration = (point_total) => {
+            console.log(point_total)
+            if (polygon_count_input.value < 3) {
                 return
             }
+            points.value = [];
+            show_geoJson.value = !show_geoJson.value;
+            return (generatePoints(point_total))
+        }
+        const generatePoints = (point_total, point_index = 0) => {
+            console.log(point_total)
+            console.log(point_index)
+            if (point_index > point_total) {
+                return console.log('done')
+            }
+            if (point_index === 0) {
+                points.value.push([0, 0])
+                return (generatePoints(point_total, point_index + 1))
+            }
+            //random integer from 0 to index length of polygon
+            let vertex_random = Math.floor(Math.random() * polygon_count_input.value);
+            points.value.push([
+                points.value[point_index - 1][0] + (polygon_data.value.features[0].geometry.coordinates[vertex_random][0] - points.value[point_index - 1][0]) / 2,
+                points.value[point_index - 1][1] + (polygon_data.value.features[0].geometry.coordinates[vertex_random][1] - points.value[point_index - 1][1]) / 2
+            ])
+            console.log(points.value);
+            return (generatePoints(point_total, point_index + 1))
+        }
+        //not working
+        watch([polygon_data.value, geojson_data.value], () => {
+            console.log('watched');
+            show_polygon.value = !show_polygon.value;
+            show_geoJson.value = !show_geoJson.value;
+            console.log(show_polygon.value)
             // initPolygonGeneration(polygon_count.value);
-            return
         });
+
         onBeforeMount(async () => {
-            //style geojson
             const { circleMarker } = await import("leaflet/dist/leaflet-src.esm");
             geojson_options.pointToLayer = (feature, latLng) => circleMarker(latLng, { radius: 8 });
-
             //initialize map
             ref.mapIsReady = true;
         })
         return {
+            initpointGeneration,
             initPolygonGeneration,
-            geojson_data,
+            polygon_data,
+            polygon_options,
+            point_count,
+            point_count_input,
+            points,
             polygon_count,
-            polygon_count_input
+            polygon_count_input,
+            show_polygon
         }
     }
 }
