@@ -1,10 +1,13 @@
 <template>
+    <div>
+      Show tile layer <input v-model="show_tile_layer" type="checkbox" name="show_tile_layer"> {{show_tile_layer}}
+    </div>
     <l-map ref="map" :center="[0,0]" :zoom="2" style="z-index:5; height:60vh">
         <l-geo-json ref="geojson" v-if="show_geoJson" :geojson="geojson_data" :options="geojson_options">
         </l-geo-json>
         <l-polygon ref="polygon" v-if="show_polygon" :style="polygon_options" :lat-lngs="polygon_data.features[0].geometry.coordinates">
         </l-polygon>
-        <l-tile-layer url="https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png" layer-type="base" name="OpenStreetMap" :max-zoom="10" />
+        <l-tile-layer v-if="show_tile_layer" url="https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png" layer-type="base" name="OpenStreetMap" :max-zoom="10" />
     </l-map>
     <div>
         Polygon radius (decimal degrees) = 1
@@ -36,6 +39,7 @@ export default {
         LTileLayer,
     },
     setup() {
+        const show_tile_layer = ref(true);
         const show_polygon = ref(true);
         const show_geoJson = ref(true);
         const r_value_input = ref('');
@@ -209,6 +213,7 @@ export default {
             r_value_input,
             show_geoJson,
             show_polygon,
+            show_tile_layer,
             skip_last_vertex,
             updateRValue,
         }
