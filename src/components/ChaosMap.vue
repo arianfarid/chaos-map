@@ -17,6 +17,9 @@
         r (between 0 and 1) = {{r_value}} <input v-model="r_value_input" type="text" v-on:input="updateRValue" name="r_value" >
     </div>
     <div>
+      Skip last vertex <input v-model="skip_last_vertex" type="checkbox" name="skip_last_vertex"> {{skip_last_vertex}}
+    </div>
+    <div>
         Point Count <input v-model="point_count_input" type="text" v-on:input="updatepointCount" name="point_count_input">
         <button @click="initpointGeneration(point_count_input)">Generate Points</button>
     </div>
@@ -135,22 +138,25 @@ export default {
             show_geoJson.value = false;
             return (generatePoints(point_total))
         }
-        const generatePoints = (point_total, point_index = 0) => {
+        const generatePoints = (point_total, point_index = 0, last_vertex=-1) => {
             if (point_index > point_total) {
                 console.log('done')
                 return addToGeoJson()
             }
             if (point_index === 0) {
                 points.value.push([0, 0])
-                return (generatePoints(point_total, point_index + 1))
+                return (generatePoints(point_total, point_index + 1, 0))
             }
             //random integer from 0 to index length of polygon
             let vertex_random = Math.floor(Math.random() * polygon_count_input.value);
+            if (skip_last_vertex.value && vertex_random === last_vertex) {
+              return generatePoints(point_total, point_index, last_vertex)
+            }
             points.value.push([
                 points.value[point_index - 1][0] + ( r_value.value * (polygon_data.value.features[0].geometry.coordinates[vertex_random][0] - points.value[point_index - 1][0])),
                 points.value[point_index - 1][1] + ( r_value.value * (polygon_data.value.features[0].geometry.coordinates[vertex_random][1] - points.value[point_index - 1][1]))
             ])
-            return (generatePoints(point_total, point_index + 1))
+            return (generatePoints(point_total, point_index + 1, vertex_random))
         }
         const addToGeoJson = async () => {
             geojson_data.value.features = [];
@@ -165,13 +171,15 @@ export default {
             });
         }
 
+        const skip_last_vertex = ref('true');
+
         watch([polygon_data.value, geojson_data.value], async () => {
             console.log('watched');
             show_polygon.value = !show_polygon.value;
             console.log(show_geoJson.value)
             if (show_geoJson.value === false) {
                 const { circleMarker } = await import("leaflet/dist/leaflet-src.esm");
-                geojson_options.pointToLayer = (feature, latLng) => circleMarker(latLng, { radius: 1 });
+                geojson_options.pointToLayer = (feature, latLng) => circleMarker(latLng, { radius: 0.5 });
                 return show_geoJson.value = true;
             }
             console.log(show_polygon.value)
@@ -201,6 +209,7 @@ export default {
             r_value_input,
             show_geoJson,
             show_polygon,
+            skip_last_vertex,
             updateRValue,
         }
     }
