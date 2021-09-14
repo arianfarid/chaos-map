@@ -3,6 +3,7 @@
         Show tile layer <input v-model="show_tile_layer" type="checkbox" name="show_tile_layer"> {{show_tile_layer}}
     </div>
     <l-map ref="map" :center="[0,0]" :zoom="3" style="z-index:5; height:60vh">
+        <l-marker v-if="constructing_polygon" :lat-lng="[0,0]" draggable @move="updateCoordinates"></l-marker>
         <l-geo-json ref="geojson" v-if="show_geoJson" :geojson="geojson_data" :options="geojson_options">
         </l-geo-json>
         <l-polygon ref="polygon" v-if="show_polygon" :style="polygon_options" :lat-lngs="polygon_data.features[0].geometry.coordinates">
@@ -10,12 +11,14 @@
         <l-tile-layer v-if="show_tile_layer" url="https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png" layer-type="base" name="OpenStreetMap" :max-zoom="10" />
     </l-map>
     <!-- check for unintended side affects -->
-    <div>
-        Polygon radius (decimal degrees) = 1
-    </div>
-    <div>
+    <div v-if="!constructing_polygon">
         Polygon Count <input v-model="polygon_count_input" type="text" v-on:input="updatePolygonCount" name="polygon_count_input">
-        <button @click="initPolygonGeneration(polygon_count_input)">Generate Polygon</button>
+        <button @click="initPolygonGeneration(polygon_count_input)">Generate Equilangular Polygon</button> OR Construct your own Polygon
+        <button @click="constructYourPolygon()">Start</button>
+    </div>
+    <div v-if="constructing_polygon">
+        <!-- TO DO ONLY ADD POINT IN POLYGON -->
+        <button v-on:click="addPointToPolygonConstructor()">Add Point</button>
     </div>
     <div>
         r (between 0 and 1) = {{r_value}} <input v-model="r_value_input" type="text" v-on:input="updateRValue" name="r_value">
@@ -35,21 +38,22 @@
 <script>
 import { onBeforeMount, ref, watch } from 'vue';
 import "leaflet/dist/leaflet.css"
-import { LGeoJson, LMap, LPolygon, LTileLayer } from "@vue-leaflet/vue-leaflet";
+import { LGeoJson, LMap, LMarker, LPolygon, LTileLayer } from "@vue-leaflet/vue-leaflet";
 export default {
     components: {
         LGeoJson,
         LMap,
+        LMarker,
         LPolygon,
         LTileLayer,
     },
     setup() {
-        const show_tile_layer = ref(false);
+        const show_tile_layer = ref(true);
         const show_polygon = ref(true);
         const show_geoJson = ref(true);
-        const skip_last_vertex = ref('true');
-        const skip_anti_clockwise_vertex = ref(true);
-        const r_value_input = ref('');
+        const skip_last_vertex = ref(false);
+        const skip_anti_clockwise_vertex = ref(false);
+        const r_value_input = ref(0.5);
         const r_value = ref(0.5);
         const updateRValue = () => {
             if (r_value_input.value < 1 && r_value_input.value > 0) {
@@ -141,8 +145,8 @@ export default {
         const points = ref([]);
 
         const initpointGeneration = (point_total) => {
-            if (polygon_count_input.value < 3) {
-                return
+            if (polygon_data.value.features[0].geometry.coordinates.length < 3) {
+                return console.log('too few vertices to initpointGeneration')
             }
             points.value = [];
             show_polygon.value = !show_polygon.value;
@@ -162,28 +166,29 @@ export default {
             let vertex_random = Math.floor(Math.random() * polygon_count_input.value);
             //generate vertex adjacent value
             let skip_anti_clockwise_vertex = () => {
-              //if first vertex, go to last vertex
-              if (last_vertex -1 < 0) {
-                console.log('a')
-                return polygon_count_input.value -1 
-              } else {
-                console.log('b')
-                return last_vertex -1
-              }
+                //if first vertex, go to last vertex
+                if (last_vertex - 1 < 0) {
+                    console.log('a')
+                    return polygon_count_input.value - 1
+                } else {
+                    console.log('b')
+                    return last_vertex - 1
+                }
             }
             if (skip_last_vertex.value && vertex_random === last_vertex) {
                 return generatePoints(point_total, point_index, last_vertex)
             }
             //TODO:
             //  Not ever triggering here
+            //  
             //anticlockwise should be previous vertex -1
             if (skip_anti_clockwise_vertex.value && vertex_random === skip_anti_clockwise_vertex()) {
-              console.log('c');
+                console.log('c');
                 return generatePoints(point_total, point_index, last_vertex)
             }
             points.value.push([
-                points.value[point_index - 1][0] + (r_value.value * (polygon_data.value.features[0].geometry.coordinates[vertex_random][0] - points.value[point_index - 1][0])),
-                points.value[point_index - 1][1] + (r_value.value * (polygon_data.value.features[0].geometry.coordinates[vertex_random][1] - points.value[point_index - 1][1]))
+                points.value[point_index - 1][0] + (r_value.value * (polygon_data.value.features[0].geometry.coordinates[vertex_random][1] - points.value[point_index - 1][0])),
+                points.value[point_index - 1][1] + (r_value.value * (polygon_data.value.features[0].geometry.coordinates[vertex_random][0] - points.value[point_index - 1][1]))
             ])
             return (generatePoints(point_total, point_index + 1, vertex_random))
         }
@@ -200,17 +205,34 @@ export default {
             });
         }
 
+        const constructing_polygon = ref(false);
+        const GPScoordinates = ref(null);
+        const constructYourPolygon = () => {
+            constructing_polygon.value = true;
+            show_polygon.value = false;
+            polygon_count_input.value = 0;
+            GPScoordinates.value = {lat: 0, lng: 0}
+        }
+        const updateCoordinates = (e) => {
+            GPScoordinates.value = e.latlng;
+        }
+        const addPointToPolygonConstructor = () => {
+            // show_polygon.value = false;
+            console.log(polygon_count_input.value)
+            polygon_count_input.value = polygon_count_input.value + 1;
+            return polygon_data.value.features[0].geometry.coordinates.push([GPScoordinates.value.lat, GPScoordinates.value.lng]);
+        }
 
         watch([polygon_data.value, geojson_data.value], async () => {
             console.log('watched');
-            show_polygon.value = !show_polygon.value;
-            console.log(show_geoJson.value)
+              show_polygon.value = !show_polygon.value;
+            // console.log(show_geoJson.value)
             if (show_geoJson.value === false) {
                 const { circleMarker } = await import("leaflet/dist/leaflet-src.esm");
                 geojson_options.pointToLayer = (feature, latLng) => circleMarker(latLng, { radius: 0.5 });
                 return show_geoJson.value = true;
             }
-            console.log(show_polygon.value)
+            // console.log(show_polygon.value)
             // initPolygonGeneration(polygon_count.value);
         });
 
@@ -221,7 +243,10 @@ export default {
             ref.mapIsReady = true;
         })
         return {
+            addPointToPolygonConstructor,
             addToGeoJson,
+            constructing_polygon,
+            constructYourPolygon,
             geojson_data,
             geojson_options,
             initpointGeneration,
@@ -240,6 +265,7 @@ export default {
             show_tile_layer,
             skip_last_vertex,
             skip_anti_clockwise_vertex,
+            updateCoordinates,
             updateRValue,
         }
     }
