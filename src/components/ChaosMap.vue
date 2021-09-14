@@ -140,7 +140,7 @@ export default {
                 "opacity": 0.35
             },
         };
-        const point_count_input = ref('');
+        const point_count_input = ref(1000);
         const point_count = ref('');
         const points = ref([]);
 
@@ -186,10 +186,17 @@ export default {
                 console.log('c');
                 return generatePoints(point_total, point_index, last_vertex)
             }
-            points.value.push([
+            let new_point = [
                 points.value[point_index - 1][0] + (r_value.value * (polygon_data.value.features[0].geometry.coordinates[vertex_random][1] - points.value[point_index - 1][0])),
                 points.value[point_index - 1][1] + (r_value.value * (polygon_data.value.features[0].geometry.coordinates[vertex_random][0] - points.value[point_index - 1][1]))
-            ])
+            ]
+
+            if (!inside(new_point, polygon_data.value.features[0].geometry.coordinates)) {
+                console.log('not inside polygon')
+                return generatePoints(point_total, point_index, last_vertex)
+            }
+
+            points.value.push(new_point)
             return (generatePoints(point_total, point_index + 1, vertex_random))
         }
         const addToGeoJson = async () => {
@@ -211,7 +218,7 @@ export default {
             constructing_polygon.value = true;
             show_polygon.value = false;
             polygon_count_input.value = 0;
-            GPScoordinates.value = {lat: 0, lng: 0}
+            GPScoordinates.value = { lat: 0, lng: 0 }
         }
         const updateCoordinates = (e) => {
             GPScoordinates.value = e.latlng;
@@ -223,9 +230,32 @@ export default {
             return polygon_data.value.features[0].geometry.coordinates.push([GPScoordinates.value.lat, GPScoordinates.value.lng]);
         }
 
+        const inside = (point, vs) => {
+            // ray-casting algorithm based on
+            // https://wrf.ecse.rpi.edu/Research/Short_Notes/pnpoly.html/pnpoly.html
+            // thanks stack overflow!
+
+            var x = point[0],
+                y = point[1];
+
+            var inside = false;
+            for (var i = 0, j = vs.length - 1; i < vs.length; j = i++) {
+                var xi = vs[i][1],
+                    yi = vs[i][0];
+                var xj = vs[j][1],
+                    yj = vs[j][0];
+
+                var intersect = ((yi > y) != (yj > y)) &&
+                    (x < (xj - xi) * (y - yi) / (yj - yi) + xi);
+                if (intersect) inside = !inside;
+            }
+
+            return inside;
+        };
+
         watch([polygon_data.value, geojson_data.value], async () => {
             console.log('watched');
-              show_polygon.value = !show_polygon.value;
+            show_polygon.value = !show_polygon.value;
             // console.log(show_geoJson.value)
             if (show_geoJson.value === false) {
                 const { circleMarker } = await import("leaflet/dist/leaflet-src.esm");
