@@ -1,8 +1,8 @@
 <template>
     <div>
-      Show tile layer <input v-model="show_tile_layer" type="checkbox" name="show_tile_layer"> {{show_tile_layer}}
+        Show tile layer <input v-model="show_tile_layer" type="checkbox" name="show_tile_layer"> {{show_tile_layer}}
     </div>
-    <l-map ref="map" :center="[0,0]" :zoom="2" style="z-index:5; height:60vh">
+    <l-map ref="map" :center="[0,0]" :zoom="3" style="z-index:5; height:60vh">
         <l-geo-json ref="geojson" v-if="show_geoJson" :geojson="geojson_data" :options="geojson_options">
         </l-geo-json>
         <l-polygon ref="polygon" v-if="show_polygon" :style="polygon_options" :lat-lngs="polygon_data.features[0].geometry.coordinates">
@@ -18,10 +18,14 @@
         <button @click="initPolygonGeneration(polygon_count_input)">Generate Polygon</button>
     </div>
     <div>
-        r (between 0 and 1) = {{r_value}} <input v-model="r_value_input" type="text" v-on:input="updateRValue" name="r_value" >
+        r (between 0 and 1) = {{r_value}} <input v-model="r_value_input" type="text" v-on:input="updateRValue" name="r_value">
     </div>
     <div>
-      Skip last vertex <input v-model="skip_last_vertex" type="checkbox" name="skip_last_vertex"> {{skip_last_vertex}}
+        Skip last vertex <input v-model="skip_last_vertex" type="checkbox" name="skip_last_vertex"> {{skip_last_vertex}}
+    </div>
+    <div>
+        Cannot be one place away (anti-clockwise) from previously chosen vertex
+        <input v-model="skip_anti_clockwise_vertex" type="checkbox" name="skip_anti_clockwise_vertex"> {{skip_anti_clockwise_vertex}}
     </div>
     <div>
         Point Count <input v-model="point_count_input" type="text" v-on:input="updatepointCount" name="point_count_input">
@@ -40,16 +44,18 @@ export default {
         LTileLayer,
     },
     setup() {
-        const show_tile_layer = ref(true);
+        const show_tile_layer = ref(false);
         const show_polygon = ref(true);
         const show_geoJson = ref(true);
+        const skip_last_vertex = ref('true');
+        const skip_anti_clockwise_vertex = ref(true);
         const r_value_input = ref('');
         const r_value = ref(0.5);
         const updateRValue = () => {
             if (r_value_input.value < 1 && r_value_input.value > 0) {
                 r_value.value = r_value_input.value
             } else {
-              return console.log('r is out of range')
+                return console.log('r is out of range')
             }
         }
         const polygon_options = {
@@ -92,12 +98,12 @@ export default {
 
             polygon_data.value.features[0].geometry.coordinates.push(
                 [
-                    20 *
+                    25 *
                     (Math.round(
                             (Math.sin(angle * (Math.PI / 180)) + Number.EPSILON) * 1000
                         ) /
                         1000),
-                    20 *
+                    25 *
                     (Math.round(
                             (Math.cos(angle * (Math.PI / 180)) + Number.EPSILON) * 1000
                         ) /
@@ -143,7 +149,7 @@ export default {
             show_geoJson.value = false;
             return (generatePoints(point_total))
         }
-        const generatePoints = (point_total, point_index = 0, last_vertex=-1) => {
+        const generatePoints = (point_total, point_index = 0, last_vertex = -1) => {
             if (point_index > point_total) {
                 console.log('done')
                 return addToGeoJson()
@@ -154,12 +160,30 @@ export default {
             }
             //random integer from 0 to index length of polygon
             let vertex_random = Math.floor(Math.random() * polygon_count_input.value);
+            //generate vertex adjacent value
+            let skip_anti_clockwise_vertex = () => {
+              //if first vertex, go to last vertex
+              if (last_vertex -1 < 0) {
+                console.log('a')
+                return polygon_count_input.value -1 
+              } else {
+                console.log('b')
+                return last_vertex -1
+              }
+            }
             if (skip_last_vertex.value && vertex_random === last_vertex) {
-              return generatePoints(point_total, point_index, last_vertex)
+                return generatePoints(point_total, point_index, last_vertex)
+            }
+            //TODO:
+            //  Not ever triggering here
+            //anticlockwise should be previous vertex -1
+            if (skip_anti_clockwise_vertex.value && vertex_random === skip_anti_clockwise_vertex()) {
+              console.log('c');
+                return generatePoints(point_total, point_index, last_vertex)
             }
             points.value.push([
-                points.value[point_index - 1][0] + ( r_value.value * (polygon_data.value.features[0].geometry.coordinates[vertex_random][0] - points.value[point_index - 1][0])),
-                points.value[point_index - 1][1] + ( r_value.value * (polygon_data.value.features[0].geometry.coordinates[vertex_random][1] - points.value[point_index - 1][1]))
+                points.value[point_index - 1][0] + (r_value.value * (polygon_data.value.features[0].geometry.coordinates[vertex_random][0] - points.value[point_index - 1][0])),
+                points.value[point_index - 1][1] + (r_value.value * (polygon_data.value.features[0].geometry.coordinates[vertex_random][1] - points.value[point_index - 1][1]))
             ])
             return (generatePoints(point_total, point_index + 1, vertex_random))
         }
@@ -176,7 +200,6 @@ export default {
             });
         }
 
-        const skip_last_vertex = ref('true');
 
         watch([polygon_data.value, geojson_data.value], async () => {
             console.log('watched');
@@ -216,6 +239,7 @@ export default {
             show_polygon,
             show_tile_layer,
             skip_last_vertex,
+            skip_anti_clockwise_vertex,
             updateRValue,
         }
     }
