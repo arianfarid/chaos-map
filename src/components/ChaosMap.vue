@@ -9,6 +9,7 @@
         </l-polygon>
         <l-tile-layer v-if="show_tile_layer" url="https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png" layer-type="base" name="OpenStreetMap" :max-zoom="10" />
     </l-map>
+    <!-- check for unintended side affects -->
     <div>
         Polygon radius (decimal degrees) = 1
     </div>
