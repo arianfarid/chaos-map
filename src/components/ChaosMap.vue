@@ -1,6 +1,7 @@
 <template>
     <div>
-        Show tile layer <input v-model="show_tile_layer" type="checkbox" name="show_tile_layer"> {{show_tile_layer}}
+        Show tile layer <input v-model="show_tile_layer" type="checkbox" name="show_tile_layer">
+        <button @click="resetPolygon()">Reset Polygon</button>
     </div>
     <l-map ref="map" :center="[0,0]" :zoom="3" style="z-index:5; height:60vh">
         <l-marker v-if="constructing_polygon" :lat-lng="[0,0]" draggable @move="updateCoordinates"></l-marker>
@@ -19,6 +20,7 @@
     <div v-if="constructing_polygon">
         <!-- TO DO ONLY ADD POINT IN POLYGON -->
         <button v-on:click="addPointToPolygonConstructor()">Add Point</button>
+        <button v-on:click="resetPolygon()">Cancel</button>
     </div>
     <div>
         r (between 0 and 1) = {{r_value}} <input v-model="r_value_input" type="text" v-on:input="updateRValue" name="r_value">
@@ -118,7 +120,11 @@ export default {
         }
         const polygon_count_input = ref('');
         const polygon_count = ref('');
-
+        const resetPolygon = () => {
+          show_polygon.value = false;
+          constructing_polygon.value = false;
+          return polygon_data.value.features[0].geometry.coordinates = [];
+        }
 
         var geojson_data = ref({
 
@@ -136,8 +142,9 @@ export default {
             //can't use leaflet methods in here
             style: {
                 "color": "#D21F3C",
-                "weight": 1,
-                "opacity": 0.35
+                "fillColor": "#D21F3C",
+                "weight": 0,
+                "opacity": 0.45
             },
         };
         const point_count_input = ref(1000);
@@ -165,13 +172,11 @@ export default {
             //random integer from 0 to index length of polygon
             let vertex_random = Math.floor(Math.random() * polygon_count_input.value);
             //generate vertex adjacent value
-            let skip_anti_clockwise_vertex = () => {
+            let anti_clockwise_vertex = () => {
                 //if first vertex, go to last vertex
                 if (last_vertex - 1 < 0) {
-                    console.log('a')
                     return polygon_count_input.value - 1
                 } else {
-                    console.log('b')
                     return last_vertex - 1
                 }
             }
@@ -182,8 +187,7 @@ export default {
             //  Not ever triggering here
             //  
             //anticlockwise should be previous vertex -1
-            if (skip_anti_clockwise_vertex.value && vertex_random === skip_anti_clockwise_vertex()) {
-                console.log('c');
+            if (skip_anti_clockwise_vertex.value && vertex_random === anti_clockwise_vertex()) {
                 return generatePoints(point_total, point_index, last_vertex)
             }
             let new_point = [
@@ -259,7 +263,7 @@ export default {
             // console.log(show_geoJson.value)
             if (show_geoJson.value === false) {
                 const { circleMarker } = await import("leaflet/dist/leaflet-src.esm");
-                geojson_options.pointToLayer = (feature, latLng) => circleMarker(latLng, { radius: 0.5 });
+                geojson_options.pointToLayer = (feature, latLng) => circleMarker(latLng, { radius: 0.7 });
                 return show_geoJson.value = true;
             }
             // console.log(show_polygon.value)
@@ -268,7 +272,7 @@ export default {
 
         onBeforeMount(async () => {
             const { circleMarker } = await import("leaflet/dist/leaflet-src.esm");
-            geojson_options.pointToLayer = (feature, latLng) => circleMarker(latLng, { radius: .5 });
+            geojson_options.pointToLayer = (feature, latLng) => circleMarker(latLng, { radius: 0.7 });
             //initialize map
             ref.mapIsReady = true;
         })
@@ -290,6 +294,7 @@ export default {
             polygon_count_input,
             r_value,
             r_value_input,
+            resetPolygon,
             show_geoJson,
             show_polygon,
             show_tile_layer,
