@@ -18,7 +18,6 @@
         <button @click="constructYourPolygon()">Start</button>
     </div>
     <div v-if="constructing_polygon">
-        <!-- TO DO ONLY ADD POINT IN POLYGON -->
         <button v-on:click="addPointToPolygonConstructor()">Add Point</button>
         <button v-on:click="resetPolygon()">Cancel</button>
     </div>
@@ -121,9 +120,9 @@ export default {
         const polygon_count_input = ref('');
         const polygon_count = ref('');
         const resetPolygon = () => {
-          show_polygon.value = false;
-          constructing_polygon.value = false;
-          return polygon_data.value.features[0].geometry.coordinates = [];
+            show_polygon.value = false;
+            constructing_polygon.value = false;
+            return polygon_data.value.features[0].geometry.coordinates = [];
         }
 
         var geojson_data = ref({
@@ -155,54 +154,114 @@ export default {
             if (polygon_data.value.features[0].geometry.coordinates.length < 3) {
                 return console.log('too few vertices to initpointGeneration')
             }
+            console.log(point_total)
             points.value = [];
             show_polygon.value = !show_polygon.value;
             show_geoJson.value = false;
             return (generatePoints(point_total))
         }
-        const generatePoints = (point_total, point_index = 0, last_vertex = -1) => {
-            if (point_index > point_total) {
-                console.log('done')
-                return addToGeoJson()
-            }
-            if (point_index === 0) {
-                points.value.push([0, 0])
-                return (generatePoints(point_total, point_index + 1, 0))
-            }
-            //random integer from 0 to index length of polygon
-            let vertex_random = Math.floor(Math.random() * polygon_count_input.value);
-            //generate vertex adjacent value
-            let anti_clockwise_vertex = () => {
-                //if first vertex, go to last vertex
-                if (last_vertex - 1 < 0) {
-                    return polygon_count_input.value - 1
-                } else {
-                    return last_vertex - 1
+
+
+        //TODO 
+        //Make a for loop version, avoid stack overflow?
+        const generatePoints = (point_total) => {
+            points.value = [
+                [0, 0]
+            ];
+            let last_vertex = -1;
+            console.log(point_total)
+            for (var i = 1; i < point_total -1 ; i++) {
+                let vertex_random = Math.floor(Math.random() * polygon_count_input.value);
+                let anti_clockwise_from_last_vertex = () => {
+
+                    if (last_vertex === -1) { // if first in loop, return nothing
+                        return -1 //will always prove false later
+                    } else if (last_vertex - 1 < 0) { //if first vertex, go to last vertex
+                        return polygon_count_input.value - 1
+                    } else {
+                        return last_vertex - 1
+                    }
                 }
-            }
-            if (skip_last_vertex.value && vertex_random === last_vertex) {
-                return generatePoints(point_total, point_index, last_vertex)
-            }
-            //TODO:
-            //  Not ever triggering here
-            //  
-            //anticlockwise should be previous vertex -1
-            if (skip_anti_clockwise_vertex.value && vertex_random === anti_clockwise_vertex()) {
-                return generatePoints(point_total, point_index, last_vertex)
-            }
-            let new_point = [
-                points.value[point_index - 1][0] + (r_value.value * (polygon_data.value.features[0].geometry.coordinates[vertex_random][1] - points.value[point_index - 1][0])),
-                points.value[point_index - 1][1] + (r_value.value * (polygon_data.value.features[0].geometry.coordinates[vertex_random][0] - points.value[point_index - 1][1]))
-            ]
 
-            if (!inside(new_point, polygon_data.value.features[0].geometry.coordinates)) {
-                console.log('not inside polygon')
-                return generatePoints(point_total, point_index, last_vertex)
-            }
+                //anticlockwise should be previous vertex -1
+                if (skip_anti_clockwise_vertex.value && vertex_random === anti_clockwise_from_last_vertex()) {
 
-            points.value.push(new_point)
-            return (generatePoints(point_total, point_index + 1, vertex_random))
+                    while (vertex_random === anti_clockwise_from_last_vertex()) {
+                        vertex_random = Math.floor(Math.random() * polygon_count_input.value);
+                    }
+                }
+
+                if (skip_last_vertex.value && vertex_random === last_vertex) {
+                    while (vertex_random === last_vertex) {
+                        vertex_random = Math.floor(Math.random() * polygon_count_input.value);
+                    }
+                }
+
+                // let new_point = [
+                //     points.value[point_index - 1][0] + (r_value.value * (polygon_data.value.features[0].geometry.coordinates[vertex_random][1] - points.value[point_index - 1][0])),
+                //     points.value[point_index - 1][1] + (r_value.value * (polygon_data.value.features[0].geometry.coordinates[vertex_random][0] - points.value[point_index - 1][1]))
+                // ]
+                let generateNewPoint = () => {
+                    return [
+                        points.value[i - 1][0] + (r_value.value * (polygon_data.value.features[0].geometry.coordinates[vertex_random][1] - points.value[i - 1][0])),
+                        points.value[i - 1][1] + (r_value.value * (polygon_data.value.features[0].geometry.coordinates[vertex_random][0] - points.value[i - 1][1]))
+                    ];
+                }
+                let new_point = generateNewPoint();
+                while(!inside(new_point, polygon_data.value.features[0].geometry.coordinates)) {
+                  vertex_random = Math.floor(Math.random() * polygon_count_input.value);
+                  new_point = generateNewPoint();
+                }
+                // console.log()
+                points.value.push(new_point)
+
+                last_vertex = vertex_random;
+            }
+            console.log('addToGeoJson')
+            return addToGeoJson()
         }
+
+        // const generatePoints = (point_total, point_index = 0, last_vertex = -1) => {
+        //     if (point_index > point_total) {
+        //         console.log('done')
+        //         return addToGeoJson()
+        //     }
+        //     if (point_index === 0) {
+        //         points.value.push([0, 0])
+        //         return (generatePoints(point_total, point_index + 1, 0))
+        //     }
+        //     //random integer from 0 to index length of polygon
+        //     let vertex_random = Math.floor(Math.random() * polygon_count_input.value);
+        //     //generate vertex adjacent value
+        //     let anti_clockwise_vertex = () => {
+        //         //if first vertex, go to last vertex
+        //         if (last_vertex - 1 < 0) {
+        //             return polygon_count_input.value - 1
+        //         } else {
+        //             return last_vertex - 1
+        //         }
+        //     }
+        //     if (skip_last_vertex.value && vertex_random === last_vertex) {
+        //         return generatePoints(point_total, point_index, last_vertex)
+        //     }
+
+        //     //anticlockwise should be previous vertex -1
+        //     if (skip_anti_clockwise_vertex.value && vertex_random === anti_clockwise_vertex()) {
+        //         return generatePoints(point_total, point_index, last_vertex)
+        //     }
+        //     let new_point = [
+        //         points.value[point_index - 1][0] + (r_value.value * (polygon_data.value.features[0].geometry.coordinates[vertex_random][1] - points.value[point_index - 1][0])),
+        //         points.value[point_index - 1][1] + (r_value.value * (polygon_data.value.features[0].geometry.coordinates[vertex_random][0] - points.value[point_index - 1][1]))
+        //     ]
+
+        //     if (!inside(new_point, polygon_data.value.features[0].geometry.coordinates)) {
+        //         console.log('not inside polygon')
+        //         return generatePoints(point_total, point_index, last_vertex)
+        //     }
+
+        //     points.value.push(new_point)
+        //     return (generatePoints(point_total, point_index + 1, vertex_random))
+        // }
         const addToGeoJson = async () => {
             geojson_data.value.features = [];
             return points.value.map(point => {
