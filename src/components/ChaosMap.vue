@@ -220,7 +220,10 @@ export default {
             console.log('addToGeoJson')
             return addToGeoJson()
         }
-
+        //
+        //  RECURSIVE VERSION
+        //  Causes stack overflow, sadly.
+        //
         // const generatePoints = (point_total, point_index = 0, last_vertex = -1) => {
         //     if (point_index > point_total) {
         //         console.log('done')
