@@ -31,6 +31,11 @@
         Cannot be one place away (anti-clockwise) from previously chosen vertex
         <input v-model="skip_anti_clockwise_vertex" type="checkbox" name="skip_anti_clockwise_vertex"> {{skip_anti_clockwise_vertex}}
     </div>
+    <div v-if="polygon_data.features[0].geometry.coordinates.length > 3">
+        Cannot be {{n_places}} places away (anti-clockwise) from previously chosen vertex
+        <input v-model="n_places_input" type="text" v-on:input="updateNPlaces()" name="nPlacesInput">
+        <input v-model="n_places_true" type="checkbox" name="skip_n_places_true"> {{n_places_true}}
+    </div>
     <div>
         Point Count <input v-model="point_count_input" type="text" v-on:input="updatepointCount" name="point_count_input">
         <button @click="initpointGeneration(point_count_input)">Generate Points</button>
@@ -54,6 +59,16 @@ export default {
         const show_geoJson = ref(true);
         const skip_last_vertex = ref(false);
         const skip_anti_clockwise_vertex = ref(false);
+        const n_places = ref('');
+        const n_places_input = ref(2);
+        const n_places_true = ref(false);
+        const updateNPlaces = () => {
+          if (n_places_input.value > 1) {
+            return n_places.value = n_places_input.value
+          } else {
+            return console.log('need larger n_input')
+          }
+        }
         const r_value_input = ref(0.5);
         const r_value = ref(0.5);
         const updateRValue = () => {
@@ -170,29 +185,37 @@ export default {
             ];
             let last_vertex = -1;
             console.log(point_total)
-            for (var i = 1; i < point_total -1 ; i++) {
+            for (var i = 1; i < point_total - 1; i++) {
                 let vertex_random = Math.floor(Math.random() * polygon_count_input.value);
-                let anti_clockwise_from_last_vertex = () => {
+                let anti_clockwise_from_last_vertex = (n) => {
 
-                    if (last_vertex === -1) { // if first in loop, return nothing
-                        return -1 //will always prove false later
-                    } else if (last_vertex - 1 < 0) { //if first vertex, go to last vertex
-                        return polygon_count_input.value - 1
+                    if (last_vertex === -n) { // if first in loop, return nothing
+                        return -n //will always prove false later
+                    } else if (last_vertex - n < 0) { //if first vertex, go to last vertex
+                        return polygon_count_input.value - n
                     } else {
-                        return last_vertex - 1
+                        return last_vertex - n
                     }
                 }
 
                 //anticlockwise should be previous vertex -1
-                if (skip_anti_clockwise_vertex.value && vertex_random === anti_clockwise_from_last_vertex()) {
+                if (skip_anti_clockwise_vertex.value && vertex_random === anti_clockwise_from_last_vertex(1)) {
 
-                    while (vertex_random === anti_clockwise_from_last_vertex()) {
+                    while (vertex_random === anti_clockwise_from_last_vertex(1)) {
                         vertex_random = Math.floor(Math.random() * polygon_count_input.value);
                     }
                 }
 
+                //skip last vertex
                 if (skip_last_vertex.value && vertex_random === last_vertex) {
                     while (vertex_random === last_vertex) {
+                        vertex_random = Math.floor(Math.random() * polygon_count_input.value);
+                    }
+                }
+
+                //skip n verted anticlockwise
+                if (n_places_input.value && vertex_random === anti_clockwise_from_last_vertex(n_places.value)) {
+                    while (vertex_random === anti_clockwise_from_last_vertex(n_places.value)) {
                         vertex_random = Math.floor(Math.random() * polygon_count_input.value);
                     }
                 }
@@ -208,9 +231,9 @@ export default {
                     ];
                 }
                 let new_point = generateNewPoint();
-                while(!inside(new_point, polygon_data.value.features[0].geometry.coordinates)) {
-                  vertex_random = Math.floor(Math.random() * polygon_count_input.value);
-                  new_point = generateNewPoint();
+                while (!inside(new_point, polygon_data.value.features[0].geometry.coordinates)) {
+                    vertex_random = Math.floor(Math.random() * polygon_count_input.value);
+                    new_point = generateNewPoint();
                 }
                 // console.log()
                 points.value.push(new_point)
@@ -347,6 +370,9 @@ export default {
             geojson_options,
             initpointGeneration,
             initPolygonGeneration,
+            n_places,
+            n_places_input,
+            n_places_true,
             polygon_data,
             polygon_options,
             point_count,
@@ -363,6 +389,7 @@ export default {
             skip_last_vertex,
             skip_anti_clockwise_vertex,
             updateCoordinates,
+            updateNPlaces,
             updateRValue,
         }
     }
