@@ -4,7 +4,7 @@
         <button @click="resetPolygon()">Reset Polygon</button>
     </div>
     <l-map ref="map" :center="[0,0]" :zoom="3" style="z-index:5; height:60vh">
-        <l-marker v-if="constructing_polygon" :lat-lng="[0,0]" draggable @move="updateCoordinates"></l-marker>
+        <l-marker v-if="constructing_polygon" :lat-lng="[0,0]" @move="updateCoordinates" draggable></l-marker>
         <l-geo-json ref="geojson" v-if="show_geoJson" :geojson="geojson_data" :options="geojson_options">
         </l-geo-json>
         <l-polygon ref="polygon" v-if="show_polygon" :style="polygon_options" :lat-lngs="polygon_data.features[0].geometry.coordinates">
@@ -207,14 +207,15 @@ export default {
                 }
 
                 //skip last vertex
-                if (skip_last_vertex.value && vertex_random === last_vertex) {
+                if (skip_last_vertex.value && vertex_random == last_vertex) {
                     while (vertex_random === last_vertex) {
                         vertex_random = Math.floor(Math.random() * polygon_count_input.value);
                     }
                 }
 
                 //skip n verted anticlockwise
-                if (n_places_input.value && vertex_random === anti_clockwise_from_last_vertex(n_places.value)) {
+                // console.log(n_places_input.value)
+                if (n_places_true.value && vertex_random == anti_clockwise_from_last_vertex(n_places.value)) {
                     while (vertex_random === anti_clockwise_from_last_vertex(n_places.value)) {
                         vertex_random = Math.floor(Math.random() * polygon_count_input.value);
                     }
