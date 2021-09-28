@@ -1,44 +1,77 @@
 <template>
-    <div>
-        Show tile layer <input v-model="show_tile_layer" type="checkbox" name="show_tile_layer">
-        <button @click="resetPolygon()">Reset Polygon</button>
-    </div>
-    <l-map ref="map" :center="[0,0]" :zoom="3" style="z-index:5; height:60vh">
-        <l-marker v-if="constructing_polygon" :lat-lng="[0,0]" @move="updateCoordinates" draggable></l-marker>
-        <l-geo-json ref="geojson" v-if="show_geoJson" :geojson="geojson_data" :options="geojson_options">
-        </l-geo-json>
-        <l-polygon ref="polygon" v-if="show_polygon" :style="polygon_options" :lat-lngs="polygon_data.features[0].geometry.coordinates">
-        </l-polygon>
-        <l-tile-layer v-if="show_tile_layer" url="https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png" layer-type="base" name="OpenStreetMap" :max-zoom="10" />
-    </l-map>
-    <!-- check for unintended side affects -->
-    <div v-if="!constructing_polygon">
-        Polygon Count <input v-model="polygon_count_input" type="text" v-on:input="updatePolygonCount" name="polygon_count_input">
-        <button @click="initPolygonGeneration(polygon_count_input)">Generate Equilangular Polygon</button> OR Construct your own Polygon
-        <button @click="constructYourPolygon()">Start</button>
-    </div>
-    <div v-if="constructing_polygon">
-        <button v-on:click="addPointToPolygonConstructor()">Add Point</button>
-        <button v-on:click="resetPolygon()">Cancel</button>
-    </div>
-    <div>
-        r (between 0 and 1) = {{r_value}} <input v-model="r_value_input" type="text" v-on:input="updateRValue" name="r_value">
-    </div>
-    <div>
-        Skip last vertex <input v-model="skip_last_vertex" type="checkbox" name="skip_last_vertex"> {{skip_last_vertex}}
-    </div>
-    <div>
-        Cannot be one place away (anti-clockwise) from previously chosen vertex
-        <input v-model="skip_anti_clockwise_vertex" type="checkbox" name="skip_anti_clockwise_vertex"> {{skip_anti_clockwise_vertex}}
-    </div>
-    <div v-if="polygon_data.features[0].geometry.coordinates.length > 3">
-        Cannot be {{n_places}} places away (anti-clockwise) from previously chosen vertex
-        <input v-model="n_places_input" type="text" v-on:input="updateNPlaces()" name="nPlacesInput">
-        <input v-model="n_places_true" type="checkbox" name="skip_n_places_true"> {{n_places_true}}
-    </div>
-    <div>
-        Point Count <input v-model="point_count_input" type="text" v-on:input="updatepointCount" name="point_count_input">
-        <button @click="initpointGeneration(point_count_input)">Generate Points</button>
+    <h1 class="font-bold text-2xl">Chaos Map Generator</h1>
+    <div class="grid grid-cols-1 p-2">
+        <!-- Map -->
+        <div class="w-full relative">
+            <div class="bg-gray-300 bottom-0 right-0 absolute m-2 p-3 rounded shadow-flat hover:shadow-flat-lg" 
+            style="z-index:1000" v-if="constructing_polygon">
+                <button class="bg-green-400 p-1 ml-2 rounded shadow-flat hover:shadow-flat-lg"
+                v-on:click="addPointToPolygonConstructor()">Add Point</button>
+                <button class="bg-red-500 p-1 mt-2 rounded shadow-flat hover:shadow-flat-lg"
+                v-on:click="resetPolygon()">Cancel</button>
+            </div>
+            <div class="bg-gray-300 top-0 right-0 absolute m-2 p-3 rounded shadow-flat hover:shadow-flat-lg" style="z-index:1000">
+                <div>Show tile layer <input v-model="show_tile_layer" type="checkbox" name="show_tile_layer"></div>
+                <div><button class="bg-red-500 p-2 mt-2 rounded shadow-flat hover:shadow-flat-lg" @click="resetPolygon()">Reset Polygon</button></div>
+            </div>
+            <l-map ref="map" :center="[0,0]" :zoom="3" style="z-index:5; height:50vh">
+                <l-marker v-if="constructing_polygon" :lat-lng="[0,0]" @move="updateCoordinates" draggable></l-marker>
+                <l-geo-json ref="geojson" v-if="show_geoJson" :geojson="geojson_data" :options="geojson_options">
+                </l-geo-json>
+                <l-polygon ref="polygon" v-if="show_polygon" :style="polygon_options" :lat-lngs="polygon_data.features[0].geometry.coordinates">
+                </l-polygon>
+                <l-tile-layer v-if="show_tile_layer" url="https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png" layer-type="base" name="OpenStreetMap" :max-zoom="10" />
+            </l-map>
+        </div>
+        <!-- check for unintended side affects -->
+        <!-- Rules control panel -->
+        <div class="w-full relative bg-gray-300 p-1 mt-2 rounded shadow-flat hover:shadow-flat-lg place-items-center grid place-items-center">
+            <!-- Polygon controls -->
+            <div class="flex flex-col items-end m-2 border-2 rounded w-auto w-2/3 p-2" v-if="!constructing_polygon">
+                <!-- equilangular polygon control -->
+                <div>Polygon Count:
+                    <input class="p-1 ml-2 rounded shadow-flat hover:shadow-flat-lg" v-model="polygon_count_input" type="text" v-on:input="updatePolygonCount" name="polygon_count_input">
+                    <button class="bg-green-400 p-1 ml-2 rounded shadow-flat hover:shadow-flat-lg" @click="initPolygonGeneration(polygon_count_input)">Generate Equilangular Polygon</button>
+                </div>
+                <!-- Draw a polygon control -->
+                <div>
+                    <!-- TODO: Safari Draggable icon -->
+                    <span class="font-bold">OR</span>
+                    <button class="bg-green-400 p-1 mt-2 ml-1 rounded shadow-flat hover:shadow-flat-lg" @click="constructYourPolygon()">Construct your own Polygon</button>
+                </div>
+            </div>
+            <div class="flex flex-col items-end m-2 border-2 rounded w-auto w-2/3 p-2">
+                <!-- R controls -->
+                <div>
+                    r (between 0 and 1) =
+                    <input class="p-1 ml-2 rounded shadow-flat hover:shadow-flat-lg" 
+                    v-model="r_value_input" type="text" v-on:input="updateRValue" name="r_value">
+                </div>
+                <div>
+                    Skip last vertex 
+                    <input v-model="skip_last_vertex" type="checkbox" name="skip_last_vertex">
+                </div>
+                <div>
+                    Cannot be one place away (anti-clockwise) from previously chosen vertex
+                    <input v-model="skip_anti_clockwise_vertex" type="checkbox" name="skip_anti_clockwise_vertex">
+                </div>
+                <div v-if="polygon_data.features[0].geometry.coordinates.length > 3">
+                    Cannot be {{n_places}} places away (anti-clockwise) from previously chosen vertex
+                    <input v-model="n_places_input" 
+                    class="p-1 ml-2 rounded shadow-flat hover:shadow-flat-lg" 
+                    type="text" v-on:input="updateNPlaces()" name="nPlacesInput">
+                    <input class="ml-2" v-model="n_places_true" type="checkbox" name="skip_n_places_true">
+                </div>
+                <div>
+                    Point Count:
+                    <input v-model="point_count_input" type="text" 
+                    class="p-1 ml-2 rounded shadow-flat hover:shadow-flat-lg" 
+                    v-on:input="updatepointCount" name="point_count_input">
+                    <button class="bg-green-400 p-1 ml-2 rounded shadow-flat hover:shadow-flat-lg"
+                    @click="initpointGeneration(point_count_input)">Generate Points</button>
+                </div>
+            </div>
+        </div>
     </div>
 </template>
 <script>
@@ -63,11 +96,11 @@ export default {
         const n_places_input = ref(2);
         const n_places_true = ref(false);
         const updateNPlaces = () => {
-          if (n_places_input.value > 1) {
-            return n_places.value = n_places_input.value
-          } else {
-            return console.log('need larger n_input')
-          }
+            if (n_places_input.value > 1) {
+                return n_places.value = n_places_input.value
+            } else {
+                return console.log('need larger n_input')
+            }
         }
         const r_value_input = ref(0.5);
         const r_value = ref(0.5);
